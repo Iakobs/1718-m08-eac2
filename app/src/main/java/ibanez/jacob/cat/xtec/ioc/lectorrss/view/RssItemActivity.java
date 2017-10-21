@@ -1,4 +1,4 @@
-package ibanez.jacob.cat.xtec.ioc.lectorrss;
+package ibanez.jacob.cat.xtec.ioc.lectorrss.view;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -6,6 +6,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import ibanez.jacob.cat.xtec.ioc.lectorrss.R;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.ConnectionUtils;
 
@@ -35,7 +36,7 @@ public class RssItemActivity extends AppCompatActivity {
 
         if (item != null) {
             if (getSupportActionBar() != null) {
-                //Change the toolbar's title
+                //Change the toolbar's title to the item's title
                 getSupportActionBar().setTitle(item.getTitle());
             }
 
@@ -52,6 +53,12 @@ public class RssItemActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Creates a string representing html code with the info of a {@link RssItem}
+     *
+     * @param item The {@link RssItem}
+     * @return The resulting string
+     */
     private String buildHtmlFromItem(RssItem item) {
         return String.format("<h3>%s</h3>" +
                         "<hr>" +

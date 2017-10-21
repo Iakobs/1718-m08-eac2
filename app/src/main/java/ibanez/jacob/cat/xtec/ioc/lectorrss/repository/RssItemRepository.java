@@ -1,4 +1,4 @@
-package ibanez.jacob.cat.xtec.ioc.lectorrss;
+package ibanez.jacob.cat.xtec.ioc.lectorrss.repository;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -14,14 +14,16 @@ import java.util.List;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
 
 /**
- * Class for operating on the database
+ * Class for manipulating {@link RssItem} objects from the database.
+ * <p>
+ * It encapsulates all access to the database, so it manages creating and closing connections itself.
  *
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
  */
-public class DBInterface {
+public class RssItemRepository {
 
     //Tag for logging purposes
-    private static final String TAG = DBInterface.class.getSimpleName();
+    private static final String TAG = RssItemRepository.class.getSimpleName();
 
     //Database columns
     private static final String COLUMN_ID = "_id";
@@ -35,12 +37,12 @@ public class DBInterface {
     private static final String COLUMN_IMAGE_CACHE_PATH = "IMAGE_CACHE_PATH";
 
     //Database variables
-    public static final String DB_NAME = "FEEDS_DB";
-    public static final String TABLE_ITEMS = "ITEMS";
-    public static final int VERSION = 1;
+    private static final String DB_NAME = "FEEDS_DB";
+    private static final String TABLE_ITEMS = "ITEMS";
+    private static final int VERSION = 1;
 
     //Database queries
-    public static final String CREATE_TABLE_ITEMS =
+    private static final String CREATE_TABLE_ITEMS =
             "CREATE TABLE IF NOT EXISTS " + TABLE_ITEMS + " (" +
                     COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     COLUMN_TITLE + " TEXT NOT NULL UNIQUE," +
@@ -58,49 +60,65 @@ public class DBInterface {
     private SQLiteDatabase mDatabase;
 
     //Constructor
-    public DBInterface(Context context) {
+    public RssItemRepository(Context context) {
         this.mHelp = new DBHelp(context);
     }
 
     //Open and close methods
 
     /**
-     * This method opens the connection to the database
+     * This method opens the connection to the database.
+     * <p>
+     * You can specify if you want only read access or both read/write access
      *
-     * @return A ready-to-use instance of the {@link DBInterface}
+     * @param withWriteAccess If {@code true}, the connection can write to the database
+     * @return A ready-to-use connection to the database
      * @throws SQLException If an error occurs
      */
-    public DBInterface open() throws SQLException {
-        mDatabase = mHelp.getWritableDatabase();
+    private RssItemRepository open(boolean withWriteAccess) throws SQLException {
+        if (withWriteAccess) {
+            mDatabase = mHelp.getWritableDatabase();
+        } else {
+            mDatabase = mHelp.getReadableDatabase();
+        }
         return this;
     }
 
     /**
      * Closes the connection to the database
      */
-    public void close() {
+    private void close() {
         mHelp.close();
     }
 
     //Methods for manipulating data
 
     /**
-     * @param item
-     * @return
+     * Creates a new {@link RssItem} in the database.
+     * <p>
+     * If the item already exists, it does nothing
+     *
+     * @param item The item to create
+     * @return The number of rows affected or -1 if an error occurs
      */
     public long insertItem(RssItem item) {
+        //Check that the item is not null
         if (item == null) {
             String msg = "The item must not be null";
             Log.e(TAG, msg);
             throw new IllegalArgumentException(msg);
         }
 
-        long result = -1L;
+        //default return value
+        long result = 0L;
 
-        if (!existsByTitle(item.getTitle())) {
-            ContentValues initialValues = new ContentValues();
+        if (!existsByTitle(item.getTitle())) { //first check if the item already exists
+            //first open database with write permissions
+            open(true);
 
             //fill all columns
+            ContentValues initialValues = new ContentValues();
+
             initialValues.put(COLUMN_TITLE, item.getTitle());
             initialValues.put(COLUMN_LINK, item.getLink());
             initialValues.put(COLUMN_AUTHOR, item.getAuthor());
@@ -110,13 +128,26 @@ public class DBInterface {
             initialValues.put(COLUMN_THUMBNAIL, item.getThumbnail());
             initialValues.put(COLUMN_IMAGE_CACHE_PATH, item.getImagePathInCache());
 
+            //create the item
             result = mDatabase.insert(TABLE_ITEMS, null, initialValues);
+
+            //database access is not needed anymore
+            close();
         }
 
         return result;
     }
 
+    /**
+     * Checks if a {@link RssItem} already exists, searching by its {@link RssItem#title}
+     *
+     * @param title The {@link RssItem#title}
+     * @return {@code true} if the item exists in the database. {@code false} otherwise.
+     */
     public boolean existsByTitle(String title) {
+        //first open database with only read access
+        open(false);
+
         Cursor cursor = mDatabase.query(
                 TABLE_ITEMS,
                 new String[]{COLUMN_ID},
@@ -127,29 +158,45 @@ public class DBInterface {
                 null
         );
 
+        //if there is a single coincidence, it means that the item already exists
         boolean exists = cursor.moveToFirst();
+
+        //close cursor so it's not needed anymore, and so the connection to the database
         cursor.close();
+        close();
+
         return exists;
     }
 
     /**
-     * @return
+     * This method retrieve all elements from the database, with an optional keyword.
+     * <p>
+     * If the keyword is informed, it searches any coincidence in the {@link RssItem#title} with the
+     * given keyword passed as parameter, not only exact matches.
+     *
+     * @param keyword The keyword to look up after
+     * @return A collection of {@link RssItem}s, matching criteria if any, or all items if there's no keyword
      */
-    public List<RssItem> getAllItems(String filter) {
+    public List<RssItem> getAllItems(String keyword) {
         List<RssItem> items = new ArrayList<>();
 
         //if the search pattern is an empty string, show all items
         String selection = null;
         String[] selectionArgs = null;
-        if (filter != null && !filter.isEmpty()) {
+
+        if (keyword != null && !keyword.isEmpty()) { //if there's a keyword, let's make a where filter
             //search items with the matching pattern
             selection = COLUMN_TITLE + " LIKE ?";
-            selectionArgs = new String[]{"%" + filter + "%"};
+            selectionArgs = new String[]{"%" + keyword + "%"};
         }
 
+        //open read access to the database
+        open(false);
+
+        //perform query to the database
         Cursor cursor = mDatabase.query(TABLE_ITEMS, null, selection, selectionArgs, null, null, null);
 
-        if (cursor.moveToFirst()) {
+        if (cursor.moveToFirst()) { //check if it have any result first
             do {
                 RssItem item = new RssItem(
                         cursor.getString(cursor.getColumnIndex(COLUMN_TITLE)),
@@ -162,18 +209,18 @@ public class DBInterface {
                         cursor.getString(cursor.getColumnIndex(COLUMN_IMAGE_CACHE_PATH))
                 );
                 items.add(item);
-            } while (cursor.moveToNext());
+            } while (cursor.moveToNext()); //continue adding while there are more items in the cursor
 
+            //close the cursor, it's not needed anymore
             cursor.close();
         }
+        close();
 
         return items;
     }
 
-    //Helper inner class
-
     /**
-     * Helper inner class for accessing the database
+     * Helper inner class for encapsulating low level access to the database
      */
     private static class DBHelp extends SQLiteOpenHelper {
 

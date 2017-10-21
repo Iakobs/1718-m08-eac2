@@ -40,8 +40,9 @@ public class ConnectionUtils {
         //Get all networks
         Network[] networks = connMgr.getAllNetworks();
 
+        //iterate for all networks checking if mobile or wifi is connected
         for (Network network : networks) {
-            //Get mobile network status for each network
+            //Get the network info for each network
             NetworkInfo networkInfo = connMgr.getNetworkInfo(network);
 
             //If the network is either mobile or wifi and is connected, we change the default false
@@ -58,9 +59,11 @@ public class ConnectionUtils {
     }
 
     /**
-     * @param urlAddress
-     * @return
-     * @throws IOException
+     * Opens an HTTP connection to the given url address
+     *
+     * @param urlAddress The string representing a url address
+     * @return The input stream associated to the connection
+     * @throws IOException If an error occurs
      */
     public static InputStream openHttpConnection(String urlAddress) throws IOException {
         InputStream in;
@@ -73,8 +76,8 @@ public class ConnectionUtils {
         HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
 
         try {
+            //prepare connection and connect
             prepareConnection(httpConn);
-
             httpConn.connect();
 
             //We get the http response code
@@ -85,11 +88,13 @@ public class ConnectionUtils {
                 //We get the input stream from the connection
                 in = httpConn.getInputStream();
             } else {
+                //There was en error on the response, log it
                 String message = "Response code not OK. Response code: " + responseCode;
                 Log.e(TAG, message);
                 throw new IOException(message);
             }
         } catch (Exception ex) {
+            //There was en error connecting, log it
             String message = "Error connecting";
             Log.e(TAG, message);
             throw new IOException(message);
@@ -98,6 +103,12 @@ public class ConnectionUtils {
         return in;
     }
 
+    /**
+     * Gives basic configuration to the http connection.
+     *
+     * @param httpConn The connection
+     * @throws ProtocolException If the http verb is not allowed
+     */
     private static void prepareConnection(HttpURLConnection httpConn) throws ProtocolException {
         httpConn.setReadTimeout(10000);
         httpConn.setConnectTimeout(15000);

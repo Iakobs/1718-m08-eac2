@@ -1,4 +1,4 @@
-package ibanez.jacob.cat.xtec.ioc.lectorrss;
+package ibanez.jacob.cat.xtec.ioc.lectorrss.view;
 
 import android.app.Activity;
 import android.content.Context;
@@ -32,11 +32,18 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.util.List;
 
+import ibanez.jacob.cat.xtec.ioc.lectorrss.R;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
+import ibanez.jacob.cat.xtec.ioc.lectorrss.parser.RssItemParser;
+import ibanez.jacob.cat.xtec.ioc.lectorrss.repository.RssItemRepository;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.ConnectionUtils;
+import ibanez.jacob.cat.xtec.ioc.lectorrss.view.adapter.ItemAdapter;
 
 /**
  * Main Activity
+ * <p>
+ * Displays a toolbar with a refresh and a search button, and a recycler view fed with a Rss xml from
+ * the internet, targeted with a hardcoded url: {@value FEED_CHANNEL}
  *
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
  */
@@ -46,13 +53,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     //Tag for logging purposes
     private static final String TAG = MainActivity.class.getSimpleName();
 
+    //Rss url
     public static final String FEED_CHANNEL = "http://www.eldiario.es/rss/";
 
+    //class members
     private LinearLayout mSearchBar;
-    private EditText mSearchQuery;
+    private EditText mSearchText;
     private ProgressBar mProgressBar;
     private ItemAdapter mItemAdapter;
-    private DBInterface mDataBase;
+    private RssItemRepository mItemRepository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,14 +76,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         //Get references to member variables
         mSearchBar = (LinearLayout) findViewById(R.id.search_bar);
-        mSearchQuery = (EditText) findViewById(R.id.et_search);
+        mSearchText = (EditText) findViewById(R.id.et_search);
         mProgressBar = (ProgressBar) findViewById(R.id.pb_loading_indicator);
         mItemAdapter = new ItemAdapter(this);
-        mDataBase = new DBInterface(this);
+        mItemRepository = new RssItemRepository(this);
 
         //set the layout manager and the adapter of the recycler view
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recycler_view);
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this); //default is set to vertical
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(mItemAdapter);
 
@@ -86,47 +95,62 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         ImageButton searchButton = (ImageButton) findViewById(R.id.ib_search);
         searchButton.setOnClickListener(this);
 
-        //set on action done listener for the search query
-        mSearchQuery.setOnEditorActionListener(this);
+        //set on action done listener for the search query, so the user can perform search also from the keyboard
+        mSearchText.setOnEditorActionListener(this);
 
-        //feed the recycler view, either from the internet or from the database
-        feedRecyclerViewFromInternetOrDatabase();
+        //feed the recycler view
+        connectToInternetAndFeedFromRepository();
     }
 
-    private void feedRecyclerViewFromInternetOrDatabase() {
+    private void connectToInternetAndFeedFromRepository() {
         if (ConnectionUtils.hasConnection(this)) { //check for internet connection
             //if there is connection, start the execution of the async task
-            new DownloadRssTask().execute(FEED_CHANNEL);
+            new DownloadRssTask(this).execute(FEED_CHANNEL);
         } else {
             //fill adapter list from database
-            feedListFromDataBase();
+            feedListFromRepository();
             Toast.makeText(this, R.string.toast_offline_load, Toast.LENGTH_SHORT).show();
         }
     }
 
+    private void feedListFromRepository() {
+        String keyword = mSearchText.getText().toString();
+        mItemAdapter.setItems(mItemRepository.getAllItems(keyword));
+    }
+
+    /**
+     * Implements behavior for a click on the search button which gets visible in the content layout
+     * when the menu search button is clicked
+     *
+     * @param view The clicked view
+     */
     @Override
     public void onClick(View view) {
-        feedListFromDataBase();
+        feedListFromRepository();
         hideSoftKeyboard(this);
     }
 
-    private void feedListFromDataBase() {
-        mDataBase.open();
-        String keyword = mSearchQuery.getText().toString();
-        mItemAdapter.setItems(mDataBase.getAllItems(keyword));
-        mDataBase.close();
-    }
-
+    /**
+     * Implements behavior when a key is pressed both on the virtual soft keyboard or an actual
+     * keyboard plugged to the device
+     *
+     * @param textView The text view with the current focus
+     * @param actionId The action id
+     * @param keyEvent The keyEvent with the info of the pressed key
+     * @return Always {@code true}
+     */
     @Override
     public boolean onEditorAction(TextView textView, int actionId, KeyEvent keyEvent) {
+        //if true, it's an actual keyboard which makes the action
         boolean enterPressedFromKeyboard = keyEvent != null && ((keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)
                 && (keyEvent.getAction() == KeyEvent.ACTION_DOWN));
+        //if true, it's the virtual keyboard performing the action
         boolean enterPressedFromSoftKeyboard = actionId == EditorInfo.IME_ACTION_DONE;
         if (enterPressedFromKeyboard || enterPressedFromSoftKeyboard) {
-            feedListFromDataBase();
+            feedListFromRepository();
         }
         hideSoftKeyboard(this);
-        return true;
+        return false;
     }
 
     @Override
@@ -140,22 +164,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * This method handles behavior when a menu item is selected
      *
      * @param item The selected item
-     * @return Return false to allow normal menu processing to proceed, true to consume it here.
+     * @return Return {@code false} to allow normal menu processing to proceed, {@code true} to consume it here.
      */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
+        //get the item's id
         int id = item.getItemId();
 
-        //we check which button has been pressed
+        //we check which button has been pressed based on its id
         switch (id) {
             case R.id.action_refresh:   //refresh button has been pressed
                 //check for connection
                 if (ConnectionUtils.hasConnection(this)) {
                     //refresh the recycler view content
-                    feedRecyclerViewFromInternetOrDatabase();
+                    connectToInternetAndFeedFromRepository();
                 } else {
                     //you pressed refresh button but there is no connection
                     Toast.makeText(this, R.string.toast_there_is_no_connection, Toast.LENGTH_SHORT).show();
@@ -181,13 +203,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * This class is for downloading a XML file from the internet in a background thread
+     * This class is a task for downloading a Rss file from the internet in a background thread
      */
     private class DownloadRssTask extends AsyncTask<String, Void, List<RssItem>> {
+
+        private Context mContext;
+
+        DownloadRssTask(Context context) {
+            this.mContext = context;
+        }
+
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
-            //set progress bar visible and hid recycler view, so we are connecting to the internet
+            //set progress bar visible
             mProgressBar.setVisibility(View.VISIBLE);
         }
 
@@ -200,82 +229,81 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 result = getRssItems(strings[0]);
                 //download thumbnails to the cache directory
                 cacheImages(result);
-            } catch (IOException ex) {
-
-            } catch (XmlPullParserException ex) {
-
+            } catch (IOException | XmlPullParserException ex) {
+                Log.e(TAG, "There was an error while downloading the rss file from " + FEED_CHANNEL);
             }
 
             return result;
         }
 
+        /**
+         * Accesses the parser and get the collection of {@link RssItem}s
+         *
+         * @param url The rss feed url
+         * @return The collection of {@link RssItem}s
+         * @throws IOException            If there's any Input/Output error
+         * @throws XmlPullParserException If the parsing process goes wrong
+         */
+        private List<RssItem> getRssItems(String url) throws IOException, XmlPullParserException {
+            InputStream in = null;
+            RssItemParser parser = new RssItemParser(mContext);
+            List<RssItem> result = null;
+
+            try {
+                in = ConnectionUtils.openHttpConnection(url);
+                result = parser.parse(in);
+            } finally {
+                if (in != null) {
+                    in.close();
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * Download the image from the internet and stores it in the app's cache
+         *
+         * @param items A collection of {@link RssItem}s
+         */
+        private void cacheImages(List<RssItem> items) {
+            for (RssItem item : items) {
+                try {
+                    //get the bytes of the image from the internet
+                    URL imageUrl = new URL(item.getThumbnail());
+                    InputStream inputStream = (InputStream) imageUrl.getContent();
+                    byte[] bufferImage = new byte[1024];
+
+                    //open a stream to the app's cache
+                    OutputStream outputStream = new FileOutputStream(item.getImagePathInCache());
+
+                    int count;
+                    while ((count = inputStream.read(bufferImage)) != -1) {
+                        outputStream.write(bufferImage, 0, count); //write the bytes from the internet to the cache
+                    }
+
+                    //close both input and output streams
+                    inputStream.close();
+                    outputStream.close();
+                } catch (IOException ex) {
+                    Log.e(TAG, "Error downloading image from " + item.getThumbnail(), ex);
+                }
+            }
+        }
+
         @Override
         protected void onPostExecute(List<RssItem> items) {
-            //save to the database all the info of the XML file
-            storeResult(items);
+            //save all the info from the XML file to the database
+            for (RssItem item : items) {
+                mItemRepository.insertItem(item);
+            }
 
-            //set progress bar invisible and show recycler view, so the result from the internet has arrived
+            //hide the progress bar, so the result from the internet has arrived
             mProgressBar.setVisibility(View.INVISIBLE);
 
             //feed the list of items of the recycler view's adapter
-            feedListFromDataBase();
+            feedListFromRepository();
         }
-    }
-
-    private void storeResult(List<RssItem> result) {
-        mDataBase.open();
-        for (RssItem item : result) {
-            mDataBase.insertItem(item);
-        }
-        mDataBase.close();
-    }
-
-    /**
-     * @param result
-     */
-    private void cacheImages(List<RssItem> result) {
-        for (RssItem item : result) {
-            try {
-                URL imageUrl = new URL(item.getThumbnail());
-                InputStream inputStream = (InputStream) imageUrl.getContent();
-                byte[] bufferImage = new byte[1024];
-
-                OutputStream outputStream = new FileOutputStream(item.getImagePathInCache());
-
-                int count;
-                while ((count = inputStream.read(bufferImage)) != -1) {
-                    outputStream.write(bufferImage, 0, count);
-                }
-
-                inputStream.close();
-                outputStream.close();
-            } catch (IOException ex) {
-                Log.e(TAG, "Error downloading image from " + item.getThumbnail(), ex);
-            }
-        }
-    }
-
-    /**
-     * @param url
-     * @return
-     * @throws IOException
-     * @throws XmlPullParserException
-     */
-    private List<RssItem> getRssItems(String url) throws IOException, XmlPullParserException {
-        InputStream in = null;
-        RssItemParser parser = new RssItemParser(this);
-        List<RssItem> result = null;
-
-        try {
-            in = ConnectionUtils.openHttpConnection(url);
-            result = parser.parse(in);
-        } finally {
-            if (in != null) {
-                in.close();
-            }
-        }
-
-        return result;
     }
 
     /**

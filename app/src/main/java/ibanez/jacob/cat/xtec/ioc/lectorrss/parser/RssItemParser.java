@@ -1,4 +1,4 @@
-package ibanez.jacob.cat.xtec.ioc.lectorrss;
+package ibanez.jacob.cat.xtec.ioc.lectorrss.parser;
 
 import android.content.Context;
 import android.util.Xml;
@@ -14,6 +14,8 @@ import java.util.List;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
 
 /**
+ * Low level object for parsing an xml from the internet to a {@link RssItem}
+ *
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
  */
 public class RssItemParser {
@@ -40,10 +42,12 @@ public class RssItemParser {
     }
 
     /**
-     * @param in
-     * @return
-     * @throws XmlPullParserException
-     * @throws IOException
+     * Parses the content of an {@link InputStream} to a collection of {@link RssItem}s
+     *
+     * @param in The {@link InputStream} coming from an http connection of a rss feed
+     * @return The collection of {@link RssItem}s
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
      */
     public List<RssItem> parse(InputStream in) throws XmlPullParserException, IOException {
         try {
@@ -62,6 +66,16 @@ public class RssItemParser {
         }
     }
 
+    /**
+     * Reads a rss tag
+     * <p>
+     * In this implementation, it simply reads a channel tag
+     *
+     * @param parser The parser
+     * @return The collection of {@link RssItem}s
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
+     */
     private List<RssItem> readRss(XmlPullParser parser) throws XmlPullParserException, IOException {
         List<RssItem> items = new ArrayList<>();
 
@@ -79,7 +93,7 @@ public class RssItemParser {
             String name = parser.getName();
 
             if (name.equals(RSS_CHANNEL)) {
-                items = readChannel(parser);
+                items = readChannel(parser); //Read the channel tag
             } else {
                 skip(parser);
             }
@@ -88,6 +102,16 @@ public class RssItemParser {
         return items;
     }
 
+    /**
+     * Reads a channel tag
+     * <p>
+     * In this implementation, it iterates over the item tags inside this channel tag.
+     *
+     * @param parser The parser
+     * @return The collection of {@link RssItem}s
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
+     */
     private List<RssItem> readChannel(XmlPullParser parser) throws XmlPullParserException, IOException {
         List<RssItem> items = new ArrayList<>();
 
@@ -114,7 +138,19 @@ public class RssItemParser {
         return items;
     }
 
+    /**
+     * Reads an item tag
+     * <p>
+     * In this implementation, it iterates over every child inside this item tag, filling up
+     * every {@link RssItem} with required information and adding it to the collection
+     *
+     * @param parser The parser
+     * @return The collection of {@link RssItem}s
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
+     */
     private RssItem readItem(XmlPullParser parser) throws XmlPullParserException, IOException {
+        //prepare variables for readability of the code
         String title = null;
         String link = null;
         String author = null;
@@ -137,6 +173,7 @@ public class RssItemParser {
             //get tag name
             String name = parser.getName();
 
+            //operate on every tag depending on what we need
             switch (name) {
                 case RSS_TITLE:
                     title = readText(parser, RSS_TITLE);
@@ -170,9 +207,10 @@ public class RssItemParser {
     }
 
     /**
+     * Get cache path from the current context and persists the value were the image will be stored.
      *
-     * @param imageUrl
-     * @return
+     * @param imageUrl The url of the image
+     * @return The path of the image stored in the app's cache
      */
     private String getCachePath(String imageUrl) {
         String imagePathInCache = null;
@@ -185,6 +223,16 @@ public class RssItemParser {
         return imagePathInCache;
     }
 
+    /**
+     * Reads the content of a given attribute from a given xml tag
+     *
+     * @param parser      The parser
+     * @param attribute   The attribute to read
+     * @param requiredTag The expected tag to read
+     * @return The value of the attribute in the tag
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
+     */
     private String readAttribute(XmlPullParser parser, String attribute, String requiredTag)
             throws XmlPullParserException, IOException {
         parser.require(XmlPullParser.START_TAG, ns, requiredTag);
@@ -197,12 +245,20 @@ public class RssItemParser {
         return attributeValue;
     }
 
+    /**
+     * Reads the value of a given xml tag
+     *
+     * @param parser      The parser
+     * @param requiredTag The expected tag to read
+     * @return The value of the tag
+     * @throws XmlPullParserException If the parsing process goes wrong
+     * @throws IOException            If there's any Input/Output error
+     */
     private String readText(XmlPullParser parser, String requiredTag) throws XmlPullParserException,
             IOException {
         parser.require(XmlPullParser.START_TAG, ns, requiredTag);
 
         String text = null;
-
         if (parser.next() == XmlPullParser.TEXT) {
             text = parser.getText();
             parser.nextTag();

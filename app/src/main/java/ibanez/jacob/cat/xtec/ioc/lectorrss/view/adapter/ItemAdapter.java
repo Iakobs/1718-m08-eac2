@@ -1,4 +1,4 @@
-package ibanez.jacob.cat.xtec.ioc.lectorrss;
+package ibanez.jacob.cat.xtec.ioc.lectorrss.view.adapter;
 
 import android.content.Context;
 import android.content.Intent;
@@ -13,16 +13,22 @@ import android.widget.TextView;
 
 import java.util.List;
 
+import ibanez.jacob.cat.xtec.ioc.lectorrss.R;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
+import ibanez.jacob.cat.xtec.ioc.lectorrss.view.RssItemActivity;
 
 /**
+ * A subclass of {@link android.support.v7.widget.RecyclerView.Adapter} for {@link RssItem}s
+ *
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
  */
 public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterViewHolder> {
 
+    //class members
     private List<RssItem> mItems;
     private Context mContext;
 
+    //constructor
     public ItemAdapter(Context mContext) {
         this.mContext = mContext;
     }
@@ -53,19 +59,28 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterVie
         return new ItemAdapterViewHolder(view);
     }
 
+    /**
+     * Implements the behavior to be executed when a row is created
+     *
+     * @param holder The view representing a single item in the recycler view's collection
+     * @param position The position of the row
+     */
     @Override
     public void onBindViewHolder(ItemAdapterViewHolder holder, int position) {
+        //get the item of the current row
         RssItem item = mItems.get(position);
 
-        //we set the content of the item view
+        //set the content of the layout
+        holder.mTitle.setText(item.getTitle());
+
+        //the image of the layout could vary depending on if the cache has the image, or if there's no image at all
         boolean hasCachePath = item.getImagePathInCache() != null && item.getImagePathInCache().length() > 0;
         boolean pathExists = Drawable.createFromPath(item.getImagePathInCache()) != null;
         if (hasCachePath && pathExists) {
-            holder.mThumbnail.setImageDrawable(Drawable.createFromPath(item.getImagePathInCache()));
+            holder.mThumbnail.setImageDrawable(Drawable.createFromPath(item.getImagePathInCache())); //the image is in the cache
         } else {
-            holder.mThumbnail.setImageResource(android.R.drawable.ic_menu_report_image);
+            holder.mThumbnail.setImageResource(android.R.drawable.ic_menu_report_image); //there's no image or the cache is empty
         }
-        holder.mTitle.setText(item.getTitle());
     }
 
     @Override
@@ -80,13 +95,13 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterVie
      * When a regular click is done, a new {@link RssItemActivity} is created. If a long click is
      * performed, the item from the list is removed.
      */
-    public class ItemAdapterViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener,
+    class ItemAdapterViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener,
             View.OnLongClickListener {
 
-        public final ImageView mThumbnail;
-        public final TextView mTitle;
+        final ImageView mThumbnail;
+        final TextView mTitle;
 
-        public ItemAdapterViewHolder(View itemView) {
+        ItemAdapterViewHolder(View itemView) {
             super(itemView);
 
             //Get references to the item's views
@@ -98,6 +113,11 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterVie
             itemView.setOnLongClickListener(this);
         }
 
+        /**
+         * Implements behavior when a single item of the list is clicked
+         *
+         * @param view The view holding the current item
+         */
         @Override
         public void onClick(View view) {
             //we get the position of the clicked view holder and get the selected item
@@ -118,6 +138,11 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterVie
             }
         }
 
+        /**
+         * Implements behavior when a single item of the list is long clicked
+         *
+         * @param view The view holding the current item
+         */
         @Override
         public boolean onLongClick(View view) {
             //we get the position of the clicked view holder and remove the selected item from the list
