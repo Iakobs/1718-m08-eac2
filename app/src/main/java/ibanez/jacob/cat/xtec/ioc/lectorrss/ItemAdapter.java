@@ -39,14 +39,6 @@ public class ItemAdapter extends RecyclerView.Adapter<ItemAdapter.ItemAdapterVie
     }
 
     /**
-     * @param searchPattern
-     */
-    public void searchItems(String searchPattern) {
-        //TODO search items with the matching pattern, case-sensitively
-        //TODO if the search pattern is an empty string, show all items
-    }
-
-    /**
      * Creates a new row for the Recycler View
      *
      * @param parent   The ViewGroup into which the new View will be added after it is bound to an adapter position.

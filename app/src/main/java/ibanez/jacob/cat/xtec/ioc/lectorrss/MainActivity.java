@@ -1,5 +1,7 @@
 package ibanez.jacob.cat.xtec.ioc.lectorrss;
 
+import android.app.Activity;
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -8,13 +10,17 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -23,10 +29,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
@@ -37,7 +40,8 @@ import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.ConnectionUtils;
  *
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener,
+        TextView.OnEditorActionListener {
 
     //Tag for logging purposes
     private static final String TAG = MainActivity.class.getSimpleName();
@@ -69,42 +73,56 @@ public class MainActivity extends AppCompatActivity {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
         recyclerView.setAdapter(mItemAdapter);
+
         //add a decorator to separate items
         DividerItemDecoration decoration = new DividerItemDecoration(this, layoutManager.getOrientation());
         recyclerView.addItemDecoration(decoration);
 
         //set onClickListener for the search button
         ImageButton searchButton = (ImageButton) findViewById(R.id.ib_search);
-        searchButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                mItemAdapter.searchItems(mSearchQuery.getText().toString());
-            }
-        });
+        searchButton.setOnClickListener(this);
+
+        //set on action done listener for the search query
+        mSearchQuery.setOnEditorActionListener(this);
 
         //feed the recycler view, either from the internet or from the database
-        feedRecyclerView(true);
+        feedRecyclerViewFromInternetOrDatabase();
     }
 
-    private void feedRecyclerView(boolean loadFromDatabase) {
-        //check for internet connection
-        if (ConnectionUtils.hasConnection(this)) {
+    private void feedRecyclerViewFromInternetOrDatabase() {
+        if (ConnectionUtils.hasConnection(this)) { //check for internet connection
             //if there is connection, start the execution of the async task
             new DownloadRssTask().execute(FEED_CHANNEL);
         } else {
-            //otherwise, check if you must load data from database or not
-            if (loadFromDatabase) {
-                //fill adapter list from database
-                mDataBase.open();
-                mItemAdapter.setItems(mDataBase.getAllItems());
-                mDataBase.close();
-
-                Toast.makeText(this, R.string.toast_offline_load, Toast.LENGTH_SHORT).show();
-            } else {
-                //you pressed refresh button but there is no connection
-                Toast.makeText(this, R.string.toast_there_is_no_connection, Toast.LENGTH_SHORT).show();
-            }
+            //fill adapter list from database
+            feedListFromDataBase();
+            Toast.makeText(this, R.string.toast_offline_load, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void onClick(View view) {
+        feedListFromDataBase();
+        hideSoftKeyboard(this);
+    }
+
+    private void feedListFromDataBase() {
+        mDataBase.open();
+        String keyword = mSearchQuery.getText().toString();
+        mItemAdapter.setItems(mDataBase.getAllItems(keyword));
+        mDataBase.close();
+    }
+
+    @Override
+    public boolean onEditorAction(TextView textView, int actionId, KeyEvent keyEvent) {
+        boolean enterPressedFromKeyboard = keyEvent != null && ((keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)
+                && (keyEvent.getAction() == KeyEvent.ACTION_DOWN));
+        boolean enterPressedFromSoftKeyboard = actionId == EditorInfo.IME_ACTION_DONE;
+        if (enterPressedFromKeyboard || enterPressedFromSoftKeyboard) {
+            feedListFromDataBase();
+        }
+        hideSoftKeyboard(this);
+        return true;
     }
 
     @Override
@@ -130,8 +148,14 @@ public class MainActivity extends AppCompatActivity {
         //we check which button has been pressed
         switch (id) {
             case R.id.action_refresh:   //refresh button has been pressed
-                //refresh the recycler view content
-                feedRecyclerView(false);
+                //check for connection
+                if (ConnectionUtils.hasConnection(this)) {
+                    //refresh the recycler view content
+                    feedRecyclerViewFromInternetOrDatabase();
+                } else {
+                    //you pressed refresh button but there is no connection
+                    Toast.makeText(this, R.string.toast_there_is_no_connection, Toast.LENGTH_SHORT).show();
+                }
                 return true;
             case R.id.action_search:    //search button has been pressed
                 //we only have to toggle the search bar
@@ -170,8 +194,6 @@ public class MainActivity extends AppCompatActivity {
             try {
                 //get the XML from the feed url and process it
                 result = getRssItems(strings[0]);
-                //TODO save to the database all the info of the XML file
-                storeResult(result);
                 //download thumbnails to the cache directory
                 cacheImages(result);
             } catch (IOException ex) {
@@ -185,11 +207,14 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPostExecute(List<RssItem> items) {
+            //save to the database all the info of the XML file
+            storeResult(items);
+
             //set progress bar invisible and show recycler view, so the result from the internet has arrived
             mProgressBar.setVisibility(View.INVISIBLE);
 
             //feed the list of items of the recycler view's adapter
-            mItemAdapter.setItems(items);
+            feedListFromDataBase();
         }
     }
 
@@ -202,7 +227,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     *
      * @param result
      */
     private void cacheImages(List<RssItem> result) {
@@ -228,7 +252,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     *
      * @param url
      * @return
      * @throws IOException
@@ -249,5 +272,18 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return result;
+    }
+
+    /**
+     * A method for hiding the Android virtual keyboard
+     *
+     * @param activity The activity which owns the keyboard to hide
+     */
+    public static void hideSoftKeyboard(Activity activity) {
+        InputMethodManager inputManager = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        View currentFocus = activity.getCurrentFocus();
+        if (inputManager != null && currentFocus != null) {
+            inputManager.hideSoftInputFromWindow(currentFocus.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+        }
     }
 }

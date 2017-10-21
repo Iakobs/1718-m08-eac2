@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
-import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.DateUtils;
 
 /**
  * Class for operating on the database
@@ -25,7 +24,7 @@ public class DBInterface {
     private static final String TAG = DBInterface.class.getSimpleName();
 
     //Database columns
-    private static final String COLUMN_ID = "_ID";
+    private static final String COLUMN_ID = "_id";
     private static final String COLUMN_TITLE = "TITLE";
     private static final String COLUMN_LINK = "LINK";
     private static final String COLUMN_AUTHOR = "AUTHOR";
@@ -34,9 +33,6 @@ public class DBInterface {
     private static final String COLUMN_CATEGORIES = "CATEGORIES";
     private static final String COLUMN_THUMBNAIL = "THUMBNAIL";
     private static final String COLUMN_IMAGE_CACHE_PATH = "IMAGE_CACHE_PATH";
-    private static final String[] SELECT_ALL = new String[]{COLUMN_ID, COLUMN_TITLE, COLUMN_LINK,
-            COLUMN_AUTHOR, COLUMN_DESCRIPTION, COLUMN_PUB_DATE, COLUMN_CATEGORIES, COLUMN_THUMBNAIL,
-            COLUMN_IMAGE_CACHE_PATH};
 
     //Database variables
     public static final String DB_NAME = "FEEDS_DB";
@@ -47,14 +43,14 @@ public class DBInterface {
     public static final String CREATE_TABLE_ITEMS =
             "CREATE TABLE IF NOT EXISTS " + TABLE_ITEMS + " (" +
                     COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    COLUMN_TITLE + " TEXT NOT NULL," +
-                    COLUMN_LINK + " TEXT NOT NULL," +
-                    COLUMN_AUTHOR + " TEXT NOT NULL," +
-                    COLUMN_DESCRIPTION + " TEXT NOT NULL," +
-                    COLUMN_PUB_DATE + " TEXT NOT NULL," +
-                    COLUMN_CATEGORIES + " TEXT NOT NULL," +
-                    COLUMN_THUMBNAIL + " TEXT NOT NULL," +
-                    COLUMN_IMAGE_CACHE_PATH + " TEXT NOT NULL" +
+                    COLUMN_TITLE + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_LINK + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_AUTHOR + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_DESCRIPTION + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_PUB_DATE + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_CATEGORIES + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_THUMBNAIL + " TEXT NOT NULL UNIQUE," +
+                    COLUMN_IMAGE_CACHE_PATH + " TEXT NOT NULL UNIQUE" +
                     ");";
 
     //class members
@@ -93,28 +89,65 @@ public class DBInterface {
      * @return
      */
     public long insertItem(RssItem item) {
-        ContentValues initialValues = new ContentValues();
+        if (item == null) {
+            String msg = "The item must not be null";
+            Log.e(TAG, msg);
+            throw new IllegalArgumentException(msg);
+        }
 
-        //fill all columns
-        initialValues.put(COLUMN_TITLE, item.getTitle());
-        initialValues.put(COLUMN_LINK, item.getLink());
-        initialValues.put(COLUMN_AUTHOR, item.getAuthor());
-        initialValues.put(COLUMN_DESCRIPTION, item.getDescription());
-        initialValues.put(COLUMN_PUB_DATE, DateUtils.dateToString(item.getPubDate(),
-                DateUtils.RSS_DATE_FORMAT));
-        initialValues.put(COLUMN_CATEGORIES, item.getCategories());
-        initialValues.put(COLUMN_THUMBNAIL, item.getThumbnail());
-        initialValues.put(COLUMN_IMAGE_CACHE_PATH, item.getImagePathInCache());
+        long result = -1L;
 
-        return mDatabase.insert(TABLE_ITEMS, null, initialValues);
+        if (!existsByTitle(item.getTitle())) {
+            ContentValues initialValues = new ContentValues();
+
+            //fill all columns
+            initialValues.put(COLUMN_TITLE, item.getTitle());
+            initialValues.put(COLUMN_LINK, item.getLink());
+            initialValues.put(COLUMN_AUTHOR, item.getAuthor());
+            initialValues.put(COLUMN_DESCRIPTION, item.getDescription());
+            initialValues.put(COLUMN_PUB_DATE, item.getPubDate());
+            initialValues.put(COLUMN_CATEGORIES, item.getCategories());
+            initialValues.put(COLUMN_THUMBNAIL, item.getThumbnail());
+            initialValues.put(COLUMN_IMAGE_CACHE_PATH, item.getImagePathInCache());
+
+            result = mDatabase.insert(TABLE_ITEMS, null, initialValues);
+        }
+
+        return result;
+    }
+
+    public boolean existsByTitle(String title) {
+        Cursor cursor = mDatabase.query(
+                TABLE_ITEMS,
+                new String[]{COLUMN_ID},
+                COLUMN_TITLE + " = ?",
+                new String[]{title},
+                null,
+                null,
+                null
+        );
+
+        boolean exists = cursor.moveToFirst();
+        cursor.close();
+        return exists;
     }
 
     /**
      * @return
      */
-    public List<RssItem> getAllItems() {
+    public List<RssItem> getAllItems(String filter) {
         List<RssItem> items = new ArrayList<>();
-        Cursor cursor = mDatabase.query(TABLE_ITEMS, SELECT_ALL, null, null, null, null, null);
+
+        //if the search pattern is an empty string, show all items
+        String selection = null;
+        String[] selectionArgs = null;
+        if (filter != null && !filter.isEmpty()) {
+            //search items with the matching pattern
+            selection = COLUMN_TITLE + " LIKE ?";
+            selectionArgs = new String[]{"%" + filter + "%"};
+        }
+
+        Cursor cursor = mDatabase.query(TABLE_ITEMS, null, selection, selectionArgs, null, null, null);
 
         if (cursor.moveToFirst()) {
             do {
@@ -123,8 +156,7 @@ public class DBInterface {
                         cursor.getString(cursor.getColumnIndex(COLUMN_LINK)),
                         cursor.getString(cursor.getColumnIndex(COLUMN_AUTHOR)),
                         cursor.getString(cursor.getColumnIndex(COLUMN_DESCRIPTION)),
-                        DateUtils.stringToDate(cursor.getString(cursor.getColumnIndex(COLUMN_PUB_DATE)),
-                                DateUtils.RSS_DATE_FORMAT),
+                        cursor.getString(cursor.getColumnIndex(COLUMN_PUB_DATE)),
                         cursor.getString(cursor.getColumnIndex(COLUMN_CATEGORIES)),
                         cursor.getString(cursor.getColumnIndex(COLUMN_THUMBNAIL)),
                         cursor.getString(cursor.getColumnIndex(COLUMN_IMAGE_CACHE_PATH))

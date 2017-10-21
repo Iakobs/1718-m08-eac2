@@ -6,11 +6,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
-import java.io.UnsupportedEncodingException;
-
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
 import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.ConnectionUtils;
-import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.DateUtils;
 
 /**
  * Activity to display a single {@link RssItem}
@@ -62,7 +59,7 @@ public class RssItemActivity extends AppCompatActivity {
                         "<hr>" +
                         "<p style='text-align: end'><em>%s</em></p>" +
                         "<hr>" +
-                        "<p><i>%s:</i> %s</p>" +
+                        "<p><b>%s:</b> %s</p>" +
                         "</p>" +
                         "<p>%s</p>",
                 item.getTitle(),
@@ -70,7 +67,7 @@ public class RssItemActivity extends AppCompatActivity {
                 item.getAuthor(),
                 getString(R.string.item_categories),
                 item.getCategories(),
-                DateUtils.dateToString(item.getPubDate(), DateUtils.RSS_DATE_FORMAT)
+                item.getPubDate()
         );
     }
 }

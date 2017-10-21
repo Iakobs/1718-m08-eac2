@@ -9,11 +9,9 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import ibanez.jacob.cat.xtec.ioc.lectorrss.model.RssItem;
-import ibanez.jacob.cat.xtec.ioc.lectorrss.utils.DateUtils;
 
 /**
  * @author <a href="mailto:jacobibanez@jacobibanez.com">Jacob Ibáñez Sánchez</a>.
@@ -121,7 +119,7 @@ public class RssItemParser {
         String link = null;
         String author = null;
         String description = null;
-        Date pubDate = null;
+        String pubDate = null;
         String categories = null;
         String thumbnail = null;
         String imageCachePath = null;
@@ -153,8 +151,7 @@ public class RssItemParser {
                     description = readText(parser, RSS_DESCRIPTION);
                     break;
                 case RSS_PUB_DATE:
-                    pubDate = DateUtils.stringToDate(readText(parser, RSS_PUB_DATE),
-                            DateUtils.RSS_DATE_FORMAT);
+                    pubDate = readText(parser, RSS_PUB_DATE);
                     break;
                 case RSS_KEYWORDS:
                     categories = readText(parser, RSS_KEYWORDS);

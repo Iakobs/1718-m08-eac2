@@ -11,7 +11,7 @@
         android:layout_width="0dp"
         android:layout_height="match_parent"
         android:layout_gravity="center"
-        android:layout_weight="1"
+        android:layout_weight="0.75"
         android:padding="8dp"
         android:src="@android:drawable/ic_menu_report_image" />
 

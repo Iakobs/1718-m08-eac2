@@ -17,13 +17,13 @@ public class RssItem implements Serializable {
     private String link;
     private String author;
     private String description;
-    private Date pubDate;
+    private String pubDate;
     private String categories;
     private String thumbnail;
     private String imagePathInCache;
 
     public RssItem(String title, String link, String author, String description,
-                   Date pubDate, String categories, String thumbnail, String imagePathInCache) {
+                   String pubDate, String categories, String thumbnail, String imagePathInCache) {
         this.title = title;
         this.link = link;
         this.author = author;
@@ -66,11 +66,11 @@ public class RssItem implements Serializable {
         this.description = description;
     }
 
-    public Date getPubDate() {
+    public String getPubDate() {
         return pubDate;
     }
 
-    public void setPubDate(Date pubDate) {
+    public void setPubDate(String pubDate) {
         this.pubDate = pubDate;
     }
 
