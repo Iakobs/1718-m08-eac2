@@ -61,6 +61,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        //Add icon to toolbar title
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setIcon(R.drawable.ic_rss_feed_white_48dp);
+
         //Get references to member variables
         mSearchBar = (LinearLayout) findViewById(R.id.search_bar);
         mSearchQuery = (EditText) findViewById(R.id.et_search);
