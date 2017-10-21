@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Lector RSS</string>
+    <string name="action_refresh">Actualitzar</string>
+    <string name="action_search">Buscar</string>
+    <string name="toast_offline_load">Càrrega offline</string>
+    <string name="toast_there_is_no_connection">No hi ha connexió!</string>
+    <string name="item_categories">Categories</string>
+</resources>

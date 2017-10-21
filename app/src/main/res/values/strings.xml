@@ -1,5 +1,8 @@
 <resources>
-    <string name="app_name">Lector RSS</string>
-    <string name="action_refresh">Actualitzar</string>
-    <string name="action_search">Buscar</string>
+    <string name="app_name">RSS Reader</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_search">Search</string>
+    <string name="toast_offline_load">Offline load</string>
+    <string name="toast_there_is_no_connection">There is no Internet access!</string>
+    <string name="item_categories">Categories</string>
 </resources>

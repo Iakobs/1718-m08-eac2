@@ -4,42 +4,57 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context="ibanez.jacob.cat.xtec.ioc.lectorrss.MainActivity"
-    tools:showIn="@layout/activity_main"
-    android:orientation="vertical">
+    tools:context="ibanez.jacob.cat.xtec.ioc.lectorrss.view.MainActivity"
+    android:animateLayoutChanges="true"
+    tools:showIn="@layout/activity_main">
 
     <LinearLayout
+        android:id="@+id/search_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:visibility="gone">
 
         <EditText
+            android:id="@+id/et_search"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1" />
+            android:layout_weight="1"
+            android:maxLines="1"
+            android:inputType="text"
+            android:imeOptions="actionDone"/>
 
-        <LinearLayout
+        <ImageButton
+            android:id="@+id/ib_search"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <ImageButton
-                android:id="@+id/imageButton"
-                android:layout_width="wrap_content"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:contentDescription="@string/action_search"
-                app:srcCompat="@android:drawable/ic_menu_search" />
-        </LinearLayout>
+            android:contentDescription="@string/action_search"
+            android:src="@android:drawable/ic_menu_search" />
 
     </LinearLayout>
 
-    <android.support.v7.widget.RecyclerView
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        tools:layout_editor_absoluteX="8dp"
-        tools:layout_editor_absoluteY="8dp" />
+        android:layout_height="match_parent">
+
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:layout_editor_absoluteX="8dp"
+            tools:layout_editor_absoluteY="8dp" />
+
+        <ProgressBar
+            android:id="@+id/pb_loading_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            style="?android:attr/progressBarStyleLarge"
+            android:visibility="invisible"/>
+    </FrameLayout>
+
 
 </LinearLayout>

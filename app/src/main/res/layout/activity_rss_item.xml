@@ -5,10 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="ibanez.jacob.cat.xtec.ioc.lectorrss.FeedActivity">
+    tools:context="ibanez.jacob.cat.xtec.ioc.lectorrss.view.RssItemActivity">
 
     <WebView
-        android:id="@+id/webView"
+        android:id="@+id/web_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
